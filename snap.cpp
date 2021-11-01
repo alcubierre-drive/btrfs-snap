@@ -356,7 +356,7 @@ int setup_variables_saved( string name ) {
         snapshot_dir = "/.snapshots/";
         remote_snapshot_dir = "/mnt/btrfs_discs/hdd/backup_ssd/";
         keep_snapshots_num = 1;
-        pre_command = "tar -P -c /mnt/btrfs_discs/ssd/boot | gzip -9 > /boot.tgz";
+        pre_command = "tar -P -f /boot.tar.gz -z -c /mnt/btrfs_discs/ssd/boot";
     } else {
         ERR( "pre-saved mode can be 'home', 'root', 'sirwer_home', 'sirwer_root'" );
         return EXIT_FAILURE;
