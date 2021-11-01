@@ -9,7 +9,6 @@
 #include <glob.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <linux/limits.h>
 #include <ctime>
 #include <unistd.h>
 #include <algorithm>
