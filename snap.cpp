@@ -357,7 +357,7 @@ int setup_variables_saved( string name ) {
         remote_snapshot_dir = "/mnt/btrfs_discs/hdd/backup_ssd/";
         keep_snapshots_num = 1;
         pre_command = "tar -P -f /boot.tar.gz -z -c /mnt/btrfs_discs/ssd/boot";
-    } else if (name == "root_hdd") {
+    } else if (name == "home_hdd") {
         backup_name = "home";
         backup_dir = "/home/";
         remote_snapshot_dir = "/mnt/backup-hdd/snapshots/";
