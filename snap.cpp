@@ -164,10 +164,10 @@ int main( int argc, char** argv ) {
     sort( local_snapshots.begin(), local_snapshots.end() );
 
     if (has_dir( remote_snapshot_dir ) || !transfer ) {
-        if (has_dir( remote_snapshot_dir ))
-            INFO( "remote snapshot directory '" << remote_snapshot_dir << "' not present. local operation." );
         if (!transfer)
             INFO( "transfer disabled. local operation." );
+        else if (has_dir( remote_snapshot_dir ))
+            INFO( "remote snapshot directory '" << remote_snapshot_dir << "' not present. local operation." );
         if (local_snapshots.size() > keep_snapshots_num) {
             unsigned del_num = 0;
             for (unsigned i=keep_snapshots_num; i<local_snapshots.size(); ++i) {
