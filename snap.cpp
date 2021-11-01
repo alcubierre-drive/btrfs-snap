@@ -362,7 +362,7 @@ int setup_variables_saved( string name ) {
         backup_dir = "/home/";
         remote_snapshot_dir = "/mnt/backup-hdd/snapshots/";
         keep_remote_snapshots_num = 3;
-    } else if (name == "home_hdd") {
+    } else if (name == "root_hdd") {
         backup_name = "root";
         backup_dir = "/";
         remote_snapshot_dir = "/mnt/backup-hdd/snapshots/";
