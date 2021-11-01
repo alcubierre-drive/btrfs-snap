@@ -10,12 +10,34 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <ctime>
+#include <linux/limits.h>
 #include <unistd.h>
 #include <algorithm>
+#include <fstream>
 
-#define WARN( str ) cerr << "warning: " << str << endl
-#define ERR( str ) cerr << "error: " << str << endl
-#define INFO( str ) cerr << "info: " << str << endl
+static const char _colors_black[] = "\u001b[30m";
+static const char _colors_red[] = "\u001b[31m";
+static const char _colors_green[] = "\u001b[32m";
+static const char _colors_yellow[] = "\u001b[33m";
+static const char _colors_blue[] = "\u001b[34m";
+static const char _colors_magenta[] = "\u001b[35m";
+static const char _colors_cyan[] = "\u001b[36m";
+static const char _colors_white[] = "\u001b[37m";
+static const char _colors_bright_black[] = "\u001b[30;1m";
+static const char _colors_bright_red[] = "\u001b[31;1m";
+static const char _colors_bright_green[] = "\u001b[32;1m";
+static const char _colors_bright_yellow[] = "\u001b[33;1m";
+static const char _colors_bright_blue[] = "\u001b[34;1m";
+static const char _colors_bright_magenta[] = "\u001b[35;1m";
+static const char _colors_bright_cyan[] = "\u001b[36;1m";
+static const char _colors_bright_white[] = "\u001b[37;1m";
+static const char _colors_reset[] = "\u001b[0m";
+#define COLOR( str, name ) _colors_##name << str << _colors_reset
+
+#define WARN( str )  cerr << COLOR( "warning: ", bright_yellow ) << str << endl
+#define ERR( str )   cerr << COLOR( "error: ",   bright_red    ) << str << endl
+#define INFO( str )  cerr << COLOR( "info: ",    bright_blue   ) << str << endl
+#define SHELL( str ) cerr << COLOR( "shell: ",   bright_green  ) << str << endl
 
 using std::vector;
 using std::string;
@@ -194,7 +216,7 @@ vector<string> glob_list( string expr ) {
     glob_t G;
     G.gl_offs = 10;
     glob( expr.c_str(), GLOB_MARK | GLOB_NOCHECK, NULL, &G );
-    std::vector<std::string> result(G.gl_pathc);
+    vector<string> result(G.gl_pathc);
     for (size_t i=0; i<G.gl_pathc; ++i) {
         result[i] = G.gl_pathv[i];
     }
@@ -212,8 +234,23 @@ int has_dir( string pathname ) {
         return 1;
 }
 
+string tempfile() {
+    char tmpnam[PATH_MAX];
+    std::tmpnam( tmpnam );
+    return tmpnam;
+}
+
 int execute( string command ) {
-    return system( command.c_str() );
+    string fname = tempfile();
+    command += " 2>&1 > '" + fname + "'";
+    int result = system( command.c_str() );
+    std::ifstream ftmp( fname );
+    for (string line; std::getline(ftmp, line); ) {
+        SHELL( line );
+    }
+    ftmp.close();
+    remove( fname.c_str() );
+    return result;
 }
 
 int btrfs_create_snapshot( string backup_dir, string name ) {
@@ -226,7 +263,7 @@ int btrfs_create_snapshot( string backup_dir, string name ) {
 
 int btrfs_transfer_snapshot_difference( string prev_name, string name, string out_dir ) {
     string command = "btrfs send -p '";
-    command += prev_name + "' '" + name + "' | btrfs receive '" + out_dir + "'";
+    command += prev_name + "' '" + name + "' 2>/dev/null | btrfs receive '" + out_dir + "'";
     INFO( command );
     if (dry_run) return 0;
     return execute( command );
