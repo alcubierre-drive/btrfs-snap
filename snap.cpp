@@ -75,7 +75,8 @@ int btrfs_delete_snapshot( string name );
 int main( int argc, char** argv ) {
     int opt;
     string setup_variables = "";
-    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:")) != -1) {
+    bool transfer = true;
+    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:T")) != -1) {
         switch (opt) {
             case 'h':
                 print_help( argv[0] );
@@ -106,6 +107,9 @@ int main( int argc, char** argv ) {
                 break;
             case 'd':
                 dry_run = true;
+                break;
+            case 'T':
+                transfer = false;
                 break;
             case '?':
                 WARN( "unknown option '-" << (char)optopt << "'. show help with -h" );
@@ -159,8 +163,11 @@ int main( int argc, char** argv ) {
     vector<string> local_snapshots = glob_list( snapshot_dir + current_snap_glob );
     sort( local_snapshots.begin(), local_snapshots.end() );
 
-    if (has_dir( remote_snapshot_dir )) {
-        INFO( "remote snapshot directory '" << remote_snapshot_dir << "' not present. local operation." );
+    if (has_dir( remote_snapshot_dir ) || !transfer ) {
+        if (has_dir( remote_snapshot_dir ))
+            INFO( "remote snapshot directory '" << remote_snapshot_dir << "' not present. local operation." );
+        if (!transfer)
+            INFO( "transfer disabled. local operation." );
         if (local_snapshots.size() > keep_snapshots_num) {
             unsigned del_num = 0;
             for (unsigned i=keep_snapshots_num; i<local_snapshots.size(); ++i) {
@@ -317,6 +324,7 @@ void print_help( string progname ) {
          << "         -B <name>       set short name of backup" << endl
          << "         -p home|root    set root/home partition mode" << endl
          << "         -H <name>       set hostname (name prefix)" << endl
+         << "         -T              skip transfer" << endl
          << "         -d              dry run (only print commands)" << endl;
 }
 
