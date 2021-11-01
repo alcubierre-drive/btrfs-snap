@@ -67,6 +67,7 @@ bool has_root_priv();
 
 void print_help( string progname );
 
+int execute_pre_command( string command );
 int btrfs_sync();
 int btrfs_create_snapshot( string backup_dir, string name );
 int btrfs_transfer_snapshot_difference( string prev_name, string name, string out_dir );
@@ -153,7 +154,7 @@ int main( int argc, char** argv ) {
     }
 
     if (pre_command != "")
-        execute( pre_command );
+        execute_pre_command( pre_command );
 
     string current_snap_name = host_name + "_" + backup_name + "_" + run_date;
     string current_snap_glob = host_name + "_" + backup_name + "_*/";
@@ -258,6 +259,12 @@ int execute( string command ) {
     ftmp.close();
     remove( fname.c_str() );
     return result;
+}
+
+int execute_pre_command( string command ) {
+    INFO( command );
+    if (dry_run) return 0;
+    return execute( command );
 }
 
 int btrfs_create_snapshot( string backup_dir, string name ) {
