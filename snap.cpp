@@ -285,7 +285,7 @@ int btrfs_transfer_snapshot_difference( string prev_name, string name, string ou
 
 int btrfs_transfer_full_snapshot( string name, string out_dir ) {
     string command = "btrfs send '";
-    command += name + "' | btrfs receive '" + out_dir + "'";
+    command += name + "' 2>/dev/null | btrfs receive '" + out_dir + "'";
     INFO( command );
     if (dry_run) return 0;
     return execute( command );
@@ -357,8 +357,18 @@ int setup_variables_saved( string name ) {
         remote_snapshot_dir = "/mnt/btrfs_discs/hdd/backup_ssd/";
         keep_snapshots_num = 1;
         pre_command = "tar -P -f /boot.tar.gz -z -c /mnt/btrfs_discs/ssd/boot";
+    } else if (name == "root_hdd") {
+        backup_name = "home";
+        backup_dir = "/home/";
+        remote_snapshot_dir = "/mnt/backup-hdd/snapshots/";
+        keep_remote_snapshots_num = 3;
+    } else if (name == "home_hdd") {
+        backup_name = "root";
+        backup_dir = "/";
+        remote_snapshot_dir = "/mnt/backup-hdd/snapshots/";
+        keep_remote_snapshots_num = 3;
     } else {
-        ERR( "pre-saved mode can be 'home', 'root', 'sirwer_home', 'sirwer_root'" );
+        ERR( "pre-saved mode can be 'home', 'root', 'sirwer_home', 'sirwer_root', 'root_hdd', 'home_hdd'" );
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
