@@ -54,9 +54,10 @@ string remote_snapshot_dir = "/mnt/backup-mypass/snapshots/";
 unsigned keep_remote_snapshots_num = 10;
 unsigned keep_snapshots_num = 10;
 bool dry_run = false;
+string pre_command = "";
+bool transfer = true;
 
-void setup_variables_home_partition();
-void setup_variables_root_partition();
+int setup_variables_saved( string name );
 
 int has_dir( string dir ); // 0: exists, 1: is file, -1: cannot access
 vector<string> glob_list( string expr );
@@ -75,8 +76,7 @@ int btrfs_delete_snapshot( string name );
 int main( int argc, char** argv ) {
     int opt;
     string setup_variables = "";
-    bool transfer = true;
-    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:T")) != -1) {
+    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:")) != -1) {
         switch (opt) {
             case 'h':
                 print_help( argv[0] );
@@ -111,6 +111,9 @@ int main( int argc, char** argv ) {
             case 'T':
                 transfer = false;
                 break;
+            case 'P':
+                pre_command = string(optarg);
+                break;
             case '?':
                 WARN( "unknown option '-" << (char)optopt << "'. show help with -h" );
                 break;
@@ -119,14 +122,8 @@ int main( int argc, char** argv ) {
         }
     }
 
-    if (setup_variables == "home") {
-        setup_variables_home_partition();
-    } else if (setup_variables == "root") {
-        setup_variables_root_partition();
-    } else if (setup_variables == "") {} else {
-        ERR( "cannot set up variables for partition != 'home' or 'root'" );
+    if (setup_variables_saved( setup_variables ) != EXIT_SUCCESS)
         return EXIT_FAILURE;
-    }
 
     string run_date = date_now();
 
@@ -154,6 +151,9 @@ int main( int argc, char** argv ) {
         ERR( "remote snapshot num kept must be larger than one." );
         return EXIT_FAILURE;
     }
+
+    if (pre_command != "")
+        execute( pre_command );
 
     string current_snap_name = host_name + "_" + backup_name + "_" + run_date;
     string current_snap_glob = host_name + "_" + backup_name + "_*/";
@@ -322,18 +322,39 @@ void print_help( string progname ) {
          << "         -s <num>        set local snapshot num to keep " << endl
          << "         -b <dir>        set backup dir to mirror" << endl
          << "         -B <name>       set short name of backup" << endl
-         << "         -p home|root    set root/home partition mode" << endl
+         << "         -p <name>       set pre-saved mode <name>" << endl
          << "         -H <name>       set hostname (name prefix)" << endl
          << "         -T              skip transfer" << endl
+         << "         -P <cmd>        execute <cmd> before snapshotting" << endl
          << "         -d              dry run (only print commands)" << endl;
 }
 
-void setup_variables_home_partition() {
-    backup_name = "home";
-    backup_dir = "/home/";
+int setup_variables_saved( string name ) {
+    if (name == "home") {
+        backup_name = "home";
+        backup_dir = "/home/";
+    } else if (name == "root") {
+        backup_name = "root";
+        backup_dir = "/";
+    } else if (name == "sirwer_home") {
+        backup_name = "home";
+        backup_dir = "/mnt/btrfs_discs/hdd/subvol_home/";
+        host_name = "sirwer";
+        transfer = false;
+        snapshot_dir = "/.snapshots_data/";
+    } else if (name == "sirwer_root") {
+        backup_name = "root";
+        backup_dir = "/";
+        host_name = "sirwer";
+        snapshot_dir = "/.snapshots/";
+        remote_snapshot_dir = "/mnt/btrfs_discs/hdd/backup_ssd/";
+        keep_snapshots_num = 1;
+        pre_command = "tar -P -c /mnt/btrfs_discs/ssd/boot | gzip -9 > /boot.tgz";
+    } else {
+        ERR( "pre-saved mode can be 'home', 'root', 'sirwer_home', 'sirwer_root'" );
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
-void setup_variables_root_partition() {
-    backup_name = "root";
-    backup_dir = "/";
-}
+
 
