@@ -4,6 +4,7 @@
  */
 
 #include "snap.hpp"
+#include "config.hpp"
 #include <unistd.h>
 
 void print_help( string progname ) {
@@ -22,13 +23,15 @@ void print_help( string progname ) {
          << "         -T              skip transfer" << endl
          << "         -P <cmd>        execute <cmd> before snapshotting" << endl
          << "         -C              do not create a snapshot" << endl
-         << "         -d              dry run (only print commands)" << endl;
+         << "         -d              dry run (only print commands)" << endl
+         << "         -c <file>       run from config file" << endl;
 }
 
 int main( int argc, char** argv ) {
     int opt;
     string setup_variables = "";
-    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:C")) != -1) {
+    string config_file = "";
+    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:Cc:")) != -1) {
         switch (opt) {
             case 'h':
                 print_help( argv[0] );
@@ -69,12 +72,30 @@ int main( int argc, char** argv ) {
             case 'C':
                 snapshot_setup::create = false;
                 break;
+            case 'c':
+                config_file = string(optarg);
+                break;
             case '?':
                 WARN( "unknown option '-" << (char)optopt << "'. show help with -h" );
                 break;
             default:
                 break;
         }
+    }
+
+    if (config_file != "") {
+        INFO( "config file mode." );
+        vector<vector<pair<string,string>>> config;
+        vector<string> sections;
+        if (parse_config( config_file, config, sections ))
+            return EXIT_FAILURE;
+        for (unsigned i=0; i<sections.size(); ++i) {
+            INFO( "[" << sections[i] << "]" );
+            set_params( config[i] );
+            if (snap_and_transfer())
+                return EXIT_FAILURE;
+        }
+        return EXIT_SUCCESS;
     }
 
     if (setup_variables != "")

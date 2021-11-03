@@ -1,1 +1,1 @@
-snap: snap.cpp main.cpp
+snap: snap.cpp main.cpp config.cpp

@@ -5,17 +5,17 @@ using std::string;
 
 class snapshot_setup {
     public:
-    static string host_name;
-    static string backup_name;
-    static string backup_dir;
-    static string snapshot_dir;
-    static string remote_snapshot_dir;
-    static unsigned keep_remote_snapshots_num;
-    static unsigned keep_snapshots_num;
-    static bool dry_run;
-    static string pre_command;
-    static bool transfer;
-    static bool create;
+        static string host_name;
+        static string backup_name;
+        static string backup_dir;
+        static string snapshot_dir;
+        static string remote_snapshot_dir;
+        static unsigned keep_remote_snapshots_num;
+        static unsigned keep_snapshots_num;
+        static bool dry_run;
+        static string pre_command;
+        static bool transfer;
+        static bool create;
 };
 
 int snap_and_transfer();

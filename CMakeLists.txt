@@ -5,4 +5,4 @@ project(
     VERSION 0.9
     LANGUAGES CXX)
 
-add_executable(btrfs-snap snap.cpp main.cpp)
+add_executable(btrfs-snap snap.cpp main.cpp config.cpp)
