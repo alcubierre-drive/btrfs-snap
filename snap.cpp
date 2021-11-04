@@ -98,7 +98,7 @@ int snap_and_transfer() {
         if (!snapshot_setup::transfer)
             INFO( "transfer disabled. local operation." );
         else if (has_dir( snapshot_setup::remote_snapshot_dir ))
-            INFO( "remote snapshot directory '" << snapshot_setup::remote_snapshot_dir <<
+            WARN( "remote snapshot directory '" << snapshot_setup::remote_snapshot_dir <<
                     "' not present. local operation." );
         if (local_snapshots.size() > snapshot_setup::keep_snapshots_num) {
             unsigned del_num = 0;
