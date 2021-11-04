@@ -35,7 +35,6 @@ int main( int argc, char** argv ) {
     int opt;
     string setup_variables = "";
     string config_file = DEFAULT_CONFIG_FILE;
-    std::cout << DEFAULT_CONFIG_FILE << std::endl;
     while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:Cc:")) != -1) {
         switch (opt) {
             case 'h':
