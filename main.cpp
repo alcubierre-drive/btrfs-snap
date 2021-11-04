@@ -3,6 +3,10 @@
  * license: gpl-v3
  */
 
+#ifndef DEFAULT_CONFIG_FILE
+#define DEFAULT_CONFIG_FILE "/etc/btrfs-snap.conf"
+#endif
+
 #include "snap.hpp"
 #include "config.hpp"
 #include <unistd.h>
@@ -30,7 +34,8 @@ void print_help( string progname ) {
 int main( int argc, char** argv ) {
     int opt;
     string setup_variables = "";
-    string config_file = "";
+    string config_file = DEFAULT_CONFIG_FILE;
+    std::cout << DEFAULT_CONFIG_FILE << std::endl;
     while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:Cc:")) != -1) {
         switch (opt) {
             case 'h':
@@ -84,18 +89,20 @@ int main( int argc, char** argv ) {
     }
 
     if (config_file != "") {
-        INFO( "config file mode." );
         vector<vector<pair<string,string>>> config;
         vector<string> sections;
         if (parse_config( config_file, config, sections ))
             return EXIT_FAILURE;
-        for (unsigned i=0; i<sections.size(); ++i) {
-            INFO( "[" << sections[i] << "]" );
-            set_params( config[i] );
-            if (snap_and_transfer())
-                return EXIT_FAILURE;
+        if (sections.size() > 0) {
+            CFG( "config file mode." );
+            for (unsigned i=0; i<sections.size(); ++i) {
+                CFG( "[" << sections[i] << "]" );
+                set_params( config[i] );
+                if (snap_and_transfer())
+                    return EXIT_FAILURE;
+            }
+            return EXIT_SUCCESS;
         }
-        return EXIT_SUCCESS;
     }
 
     if (setup_variables != "")

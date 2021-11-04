@@ -40,8 +40,9 @@ static const char _colors_bright_white[] = "\u001b[37;1m";
 static const char _colors_reset[] = "\u001b[0m";
 #define COLOR( str, name ) _colors_##name << str << _colors_reset
 
-#define WARN( str )  std::cerr << COLOR( "warning: ", bright_yellow ) << str << std::endl
-#define ERR( str )   std::cerr << COLOR( "error: ",   bright_red    ) << str << std::endl
-#define INFO( str )  std::cerr << COLOR( "info: ",    bright_blue   ) << str << std::endl
-#define SHELL( str ) std::cerr << COLOR( "shell: ",   bright_green  ) << str << std::endl
+#define WARN( str )  std::cerr << COLOR( "warning: ", bright_yellow  ) << str << std::endl
+#define ERR( str )   std::cerr << COLOR( "error: ",   bright_red     ) << str << std::endl
+#define INFO( str )  std::cerr << COLOR( "info: ",    bright_blue    ) << str << std::endl
+#define SHELL( str ) std::cerr << COLOR( "shell: ",   bright_green   ) << str << std::endl
+#define CFG( str )   std::cerr << COLOR( "cfg: ",     bright_magenta ) << str << std::endl
 
