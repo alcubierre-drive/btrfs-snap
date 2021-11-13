@@ -221,11 +221,22 @@ int execute_pre_command( string command ) {
     return execute( command );
 }
 
-int execute_post_command( string command, string snapshot_name ) {
+static string ReplaceString(string subject, const string& search, const string& replace) {
+    size_t pos = 0;
+    while ((pos = subject.find(search, pos)) != string::npos) {
+         subject.replace(pos, search.length(), replace);
+         pos += replace.length();
+    }
+    return subject;
+}
+
+int execute_post_command( string command_, string snapshot_name ) {
     // TODO replace %SNAPSHOT% with snapshot_name in command
+    string command = ReplaceString( command_, "%SNAPSHOT%", snapshot_name );
     INFO( command );
     if (snapshot_setup::dry_run) return 0;
-    return execute( command );
+    //return execute( command );
+    return 0;
 }
 
 int btrfs_create_snapshot( string backup_dir, string name ) {
