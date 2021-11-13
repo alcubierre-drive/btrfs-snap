@@ -42,6 +42,7 @@ static string date_now();
 static bool has_root_priv();
 
 static int execute_pre_command( string command );
+static int execute_post_command( string command, string snapshot_name );
 static int btrfs_sync();
 static int btrfs_create_snapshot( string backup_dir, string name );
 static int btrfs_transfer_snapshot_difference( string prev_name, string name, string out_dir );
@@ -167,7 +168,7 @@ breakloops:
         return EXIT_FAILURE;
 
     if (snapshot_setup::post_command != "")
-        if (execute_pre_command( snapshot_setup::post_command ))
+        if (execute_post_command( snapshot_setup::post_command, current_snap_name ))
             return EXIT_FAILURE;
 
     return EXIT_SUCCESS;
@@ -215,6 +216,13 @@ int execute( string command ) {
 }
 
 int execute_pre_command( string command ) {
+    INFO( command );
+    if (snapshot_setup::dry_run) return 0;
+    return execute( command );
+}
+
+int execute_post_command( string command, string snapshot_name ) {
+    // TODO replace %SNAPSHOT% with snapshot_name in command
     INFO( command );
     if (snapshot_setup::dry_run) return 0;
     return execute( command );
