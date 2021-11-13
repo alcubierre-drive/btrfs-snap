@@ -231,12 +231,10 @@ static string ReplaceString(string subject, const string& search, const string& 
 }
 
 int execute_post_command( string command_, string snapshot_name ) {
-    // TODO replace %SNAPSHOT% with snapshot_name in command
     string command = ReplaceString( command_, "%SNAPSHOT%", snapshot_name );
     INFO( command );
     if (snapshot_setup::dry_run) return 0;
-    //return execute( command );
-    return 0;
+    return execute( command );
 }
 
 int btrfs_create_snapshot( string backup_dir, string name ) {
