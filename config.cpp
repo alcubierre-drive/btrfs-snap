@@ -56,6 +56,8 @@ void set_params( const vector<pair<string,string>>& params ) {
             snapshot_setup::dry_run = parse_bool(p.second);
         } else if (p.first == "pre_command") {
             snapshot_setup::pre_command = p.second;
+        } else if (p.first == "post_command") {
+            snapshot_setup::post_command = p.second;
         } else if (p.first == "transfer") {
             snapshot_setup::transfer = parse_bool(p.second);
         } else if (p.first == "create") {

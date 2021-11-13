@@ -24,6 +24,7 @@ unsigned snapshot_setup::keep_remote_snapshots_num = 10;
 unsigned snapshot_setup::keep_snapshots_num = 10;
 bool snapshot_setup::dry_run = false;
 string snapshot_setup::pre_command = "";
+string snapshot_setup::post_command = "";
 bool snapshot_setup::transfer = true;
 bool snapshot_setup::create = true;
 
@@ -164,6 +165,10 @@ breakloops:
 
     if (btrfs_sync())
         return EXIT_FAILURE;
+
+    if (snapshot_setup::post_command != "")
+        if (execute_pre_command( snapshot_setup::post_command ))
+            return EXIT_FAILURE;
 
     return EXIT_SUCCESS;
 }

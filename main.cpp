@@ -26,6 +26,7 @@ void print_help( string progname ) {
          << "         -H <name>       set hostname (name prefix)" << endl
          << "         -T              skip transfer" << endl
          << "         -P <cmd>        execute <cmd> before snapshotting" << endl
+         << "         -x <cmd>        execute <cmd> after snapshooting" << endl
          << "         -C              do not create a snapshot" << endl
          << "         -d              dry run (only print commands)" << endl
          << "         -c <file>       run from config file" << endl;
@@ -35,7 +36,7 @@ int main( int argc, char** argv ) {
     int opt;
     string setup_variables = "";
     string config_file = DEFAULT_CONFIG_FILE;
-    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:Cc:")) != -1) {
+    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:Cc:x:")) != -1) {
         switch (opt) {
             case 'h':
                 print_help( argv[0] );
@@ -72,6 +73,9 @@ int main( int argc, char** argv ) {
                 break;
             case 'P':
                 snapshot_setup::pre_command = string(optarg);
+                break;
+            case 'x':
+                snapshot_setup::post_command = string(optarg);
                 break;
             case 'C':
                 snapshot_setup::create = false;

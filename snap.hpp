@@ -14,6 +14,7 @@ class snapshot_setup {
         static unsigned keep_snapshots_num;
         static bool dry_run;
         static string pre_command;
+        static string post_command;
         static bool transfer;
         static bool create;
 };
