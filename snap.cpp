@@ -27,6 +27,7 @@ string snapshot_setup::pre_command = "";
 string snapshot_setup::post_command = "";
 bool snapshot_setup::transfer = true;
 bool snapshot_setup::create = true;
+bool snapshot_setup::do_sync = true;
 
 using std::vector;
 using std::string;
@@ -164,8 +165,9 @@ breakloops:
         }
     }
 
-    if (btrfs_sync())
-        return EXIT_FAILURE;
+    if (snapshot_setup::do_sync)
+        if (btrfs_sync())
+            return EXIT_FAILURE;
 
     if (snapshot_setup::post_command != "")
         if (execute_post_command( snapshot_setup::post_command, current_snap_name ))
@@ -328,4 +330,6 @@ int setup_variables_saved( string name ) {
     return EXIT_SUCCESS;
 }
 
-
+int snap_finalize_sync() {
+    return btrfs_sync();
+}

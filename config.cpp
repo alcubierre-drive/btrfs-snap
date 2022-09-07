@@ -62,6 +62,8 @@ void set_params( const vector<pair<string,string>>& params ) {
             snapshot_setup::transfer = parse_bool(p.second);
         } else if (p.first == "create") {
             snapshot_setup::create = parse_bool(p.second);
+        } else if (p.first == "sync") {
+            snapshot_setup::do_sync = parse_bool(p.second);
         } else {
             WARN( "key '" << p.first << "' unknown." );
         }

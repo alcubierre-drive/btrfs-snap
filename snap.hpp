@@ -17,10 +17,12 @@ class snapshot_setup {
         static string post_command;
         static bool transfer;
         static bool create;
+        static bool do_sync;
 };
 
 int snap_and_transfer();
 int setup_variables_saved( string name );
+int snap_finalize_sync();
 
 static const char _colors_black[] = "\u001b[30m";
 static const char _colors_red[] = "\u001b[31m";
