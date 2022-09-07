@@ -104,6 +104,9 @@ int main( int argc, char** argv ) {
                 if (snap_and_transfer())
                     return EXIT_FAILURE;
             }
+            if (!snapshot_setup::do_sync)
+                if (snap_finalize_sync())
+                    return EXIT_FAILURE;
             return EXIT_SUCCESS;
         }
     }
