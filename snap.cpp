@@ -3,6 +3,7 @@
  * license: gpl-v3
  */
 
+#include "nokill.hpp"
 #include "snap.hpp"
 
 #include <vector>
@@ -206,8 +207,14 @@ string tempfile() {
 
 int execute( string command ) {
     string fname = tempfile();
-    command += " 2>&1 > '" + fname + "'";
-    int result = system( command.c_str() );
+    command = "trap '' SIGINT; " + command + " 2>&1 > '" + fname + "'";
+    pid_t other = fork();
+    if (!other) {
+        signal(SIGINT, nokill_handler);
+        execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
+    }
+    int result = 0;
+    waitpid( other, &result, 0 );
     std::ifstream ftmp( fname );
     for (string line; std::getline(ftmp, line); ) {
         SHELL( line );

@@ -1,10 +1,12 @@
-#include <signal.h>
+#include "nokill.hpp"
 #include <thread>
 #include <mutex>
 #include <cstdio>
 
 #define KILL_SECONDS_MAX 5
 #define KILL_SECONDS_NUM 5
+
+nokill_t nokill_handler = NULL;
 
 static std::mutex kill_mutex;
 static std::thread* kill_thread;
@@ -54,6 +56,7 @@ void nokill_init() {
             }
         }
     } );
+    nokill_handler = kill_function;
     signal(SIGINT, kill_function);
 }
 
