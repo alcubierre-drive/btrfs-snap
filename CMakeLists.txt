@@ -5,7 +5,7 @@ project(
     VERSION 0.9
     LANGUAGES CXX)
 
-add_executable(btrfs-snap snap.cpp main.cpp config.cpp)
+add_executable(btrfs-snap snap.cpp main.cpp config.cpp nokill.cpp)
 
 if(DEFINED DEFAULT_CONFIG_FILE)
     add_compile_definitions(DEFAULT_CONFIG_FILE="${DEFAULT_CONFIG_FILE}")

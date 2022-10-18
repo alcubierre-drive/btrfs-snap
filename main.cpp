@@ -9,6 +9,7 @@
 
 #include "snap.hpp"
 #include "config.hpp"
+#include "nokill.hpp"
 #include <unistd.h>
 
 void print_help( string progname ) {
@@ -90,6 +91,7 @@ int main( int argc, char** argv ) {
                 break;
         }
     }
+    nokill_init();
 
     if (config_file != "") {
         vector<vector<pair<string,string>>> config;
@@ -122,5 +124,6 @@ int main( int argc, char** argv ) {
         if (snap_finalize_sync())
             return EXIT_FAILURE;
 
+    nokill_clear();
     return EXIT_SUCCESS;
 }

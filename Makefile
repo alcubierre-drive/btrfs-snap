@@ -1,1 +1,1 @@
-snap: snap.cpp main.cpp config.cpp
+snap: snap.cpp main.cpp config.cpp nokill.cpp
