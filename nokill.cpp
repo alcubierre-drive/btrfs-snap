@@ -2,6 +2,7 @@
 #include <thread>
 #include <mutex>
 #include <cstdio>
+#include <cstdlib>
 
 #define KILL_SECONDS_MAX 5
 #define KILL_SECONDS_NUM 5
