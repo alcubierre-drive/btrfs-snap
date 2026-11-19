@@ -100,6 +100,22 @@ static string fstab_target_for_key( struct libmnt_table* tb, const string& key )
     return target;
 }
 
+// fstab entry mounted exactly at target
+static struct libmnt_fs* fstab_entry_for_target( struct libmnt_table* tb, const string& target ) {
+    struct libmnt_fs* found = nullptr;
+    struct libmnt_iter* it = mnt_new_iter( MNT_ITER_FORWARD );
+    struct libmnt_fs* fs;
+    while (mnt_table_next_fs( tb, it, &fs ) == 0) {
+        const char* t = mnt_fs_get_target( fs );
+        if (t && strip_trailing_slashes( t ) == target) {
+            found = fs;
+            break;
+        }
+    }
+    mnt_free_iter( it );
+    return found;
+}
+
 static watch_group& get_group( vector<watch_group>& groups, const string& name ) {
     for (auto& e: groups)
         if (e.name == name) return e;
@@ -172,8 +188,27 @@ int load_watch_groups( const string& config_file, const string& fstab_file,
             else WARN( "[" << sections[i] << "] key '" << kv.first << "' unknown." );
         }
         add_specs( g, tb, devices, "watch section", sections[i], !have_mount );
-        for (const string& mp: split_ws( mount ))
-            g.mountpoints.push_back( strip_trailing_slashes( mp ) );
+        for (const string& mp_: split_ws( mount )) {
+            string mp = strip_trailing_slashes( mp_ );
+            g.mountpoints.push_back( mp );
+            if (!devices.empty())
+                continue;
+            // no devices given: watch the fstab source of each mount point
+            struct libmnt_fs* fs = fstab_entry_for_target( tb, mp );
+            const char* src = fs ? mnt_fs_get_source( fs ) : nullptr;
+            watch_device d;
+            d.spec = src ? src : "";
+            d.key = watch_normalize_spec( d.spec );
+            d.mountpoint = mp;
+            d.source = "fstab";
+            if (!src)
+                WARN( "[" << sections[i] << "] mount point '" << mp << "' is not in fstab; set devices =" );
+            else if (d.key.empty())
+                WARN( "[" << sections[i] << "] fstab source '" << src << "' of '" << mp
+                        << "' cannot be watched; set devices =" );
+            else
+                add_device( g, d, false );
+        }
         if (g.devices.empty())
             WARN( "[" << sections[i] << "] has no devices" );
     }

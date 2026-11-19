@@ -33,6 +33,11 @@ simple c++ snapshot backup with btrfs for linux
   devices = UUID=5f2c...  PARTUUID=1234abcd-01   # all must be connected
   mount   = /mnt/backup-hdd                      # optional, default: fstab
   ```
+  Without `devices`, the disks are the fstab sources of the `mount` points:
+  ```ini
+  [watch hdd]
+  mount = /mnt/backup-hdd    # fstab: UUID=5f2c... /mnt/backup-hdd btrfs noauto 0 0
+  ```
 * `btrfs-snap-cpp --daemon` (root, `btrfs-snap-cpp.service`) watches devices
   and asks questions over D-Bus; backups run as
   `btrfs-snap-cpp-backup-<group>.service`
