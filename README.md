@@ -45,9 +45,13 @@ simple c++ snapshot backup with btrfs for linux
 * `btrfs-snap-cpp agent` (user, `btrfs-snap-cpp-agent.service`) shows the
   questions as desktop notifications.
 * without root: `btrfs-snap-cpp status | backup [-w] <group> | mount <group> |
-  umount <group> | stop <group> | answer <id> <choice> | reload`. Changes are
-  authorized by polkit (`org.btrfssnapcpp.manage`, no password for the
-  active local session).
+  umount <group> | stop <group> | answer <id> <choice> | reload | ask [<group>]`.
+  Changes are authorized by polkit (`org.btrfssnapcpp.manage`, no password
+  for the active local session).
+* `btrfs-snap-cpp ask [<group>]` brings a group's question up again (every
+  group without `<group>`): the pending one if there is one, else the one
+  for its state (connected: mount / backup, mounted: unmount). As always,
+  nothing happens unless it is answered. Handy on a key binding.
 * setup: `sudo cmake --install build`, then
   `systemctl enable --now btrfs-snap-cpp` and
   `systemctl --user enable --now btrfs-snap-cpp-agent`.

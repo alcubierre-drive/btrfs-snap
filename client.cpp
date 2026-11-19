@@ -1,6 +1,6 @@
 /*
- * btrfs-snap-cpp status|backup|mount|umount|stop|answer|reload: talk to the
- * daemon. Works without root; mutating commands are authorized by polkit.
+ * btrfs-snap-cpp status|backup|mount|umount|stop|answer|reload|ask: talk to
+ * the daemon. Works without root; mutating commands are authorized by polkit.
  *
  * author: alcubierre-drive
  * license: gpl-v3
@@ -219,6 +219,30 @@ int cmd_backup( int argc, char** argv ) {
     return w.done && w.ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
+// ask [<group>]: show the pending question again, or ask the one for the
+// group's state; without a group, for every group
+int cmd_ask( int argc, char** argv ) {
+    if (argc > 2) {
+        fprintf( stderr, "usage: btrfs-snap-cpp ask [<group>]\n" );
+        return EXIT_FAILURE;
+    }
+    sd_bus_message* reply = nullptr;
+    if (call( &reply, "Ask", "s", argc == 2 ? argv[1] : "" ) < 0) return EXIT_FAILURE;
+    bool any = false, none = true;
+    if (sd_bus_message_enter_container( reply, 'a', "(sbs)" ) >= 0) {
+        const char *group, *what;
+        int ok;
+        while (sd_bus_message_read( reply, "(sbs)", &group, &ok, &what ) > 0) {
+            printf( "%s: %s\n", group, what );
+            any |= ok;
+            none = false;
+        }
+    }
+    sd_bus_message_unref( reply );
+    if (none) printf( "no watch groups configured\n" );
+    return any ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 int group_cmd( int argc, char** argv, const char* method ) {
     if (argc != 2) {
         fprintf( stderr, "usage: btrfs-snap-cpp %s <group>\n", argv[0] );
@@ -227,7 +251,7 @@ int group_cmd( int argc, char** argv, const char* method ) {
     return call( nullptr, method, "s", argv[1] ) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-const char* const commands[] = { "status", "backup", "mount", "umount", "stop", "answer", "reload" };
+const char* const commands[] = { "status", "backup", "mount", "umount", "stop", "answer", "reload", "ask" };
 
 } // namespace
 
@@ -263,6 +287,8 @@ int client_main( int argc, char** argv ) {
             ret = call( nullptr, "Answer", "us", (uint32_t)strtoul( argv[1], nullptr, 10 ), argv[2] ) < 0
                 ? EXIT_FAILURE : EXIT_SUCCESS;
         }
+    } else if (cmd == "ask") {
+        ret = cmd_ask( argc, argv );
     } else { // reload
         ret = call( nullptr, "Reload", "" ) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
     }

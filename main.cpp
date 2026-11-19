@@ -36,7 +36,7 @@ void print_help( string progname ) {
          << "  " << progname << " --daemon [-c <file>] [-f <fstab>] [-v]" << endl
          << "  " << progname << " agent [-t <terminal>] [-v]" << endl
          << "  " << progname << " status | backup [-w|-f] <group> | mount <group> | umount <group>" << endl
-         << "  " << progname << " stop <group> | answer <id> <choice> | reload" << endl;
+         << "  " << progname << " stop <group> | answer <id> <choice> | reload | ask [<group>]" << endl;
 }
 
 int main( int argc, char** argv ) {

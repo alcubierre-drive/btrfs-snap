@@ -36,6 +36,7 @@
 #include <cstdarg>
 #include <functional>
 #include <map>
+#include <tuple>
 #include <pwd.h>
 #include <sys/epoll.h>
 #include <sys/inotify.h>
@@ -282,6 +283,16 @@ int on_question_timeout( sd_event_source*, uint64_t, void* userdata ) {
     return 0;
 }
 
+// broadcast q; agents show it unless they already do
+void send_question( const question& q ) {
+    sd_bus_message* m = nullptr;
+    int r = sd_bus_message_new_signal( bus, &m, BSC_OBJ_PATH, BSC_IFACE, "Question" );
+    if (r >= 0) r = append_question( m, q );
+    if (r >= 0) r = sd_bus_send( bus, m, nullptr );
+    if (r < 0) LOG( "cannot send question: %s", strerror( -r ) );
+    sd_bus_message_unref( m );
+}
+
 // choices[0] is the default; it must be a choice that does nothing
 void ask( group_state& g, const string& kind, const string& text, vector<choice> choices,
         const string& log = "" ) {
@@ -301,12 +312,7 @@ void ask( group_state& g, const string& kind, const string& text, vector<choice>
                 question_timeout_usec, USEC_PER_SEC, on_question_timeout, (void*)(uintptr_t)q.id ) < 0)
         LOG( "cannot arm question timeout" );
     LOG( "group '%s': question #%u (%s)", g.cfg.name.c_str(), q.id, kind.c_str() );
-    sd_bus_message* m = nullptr;
-    int r = sd_bus_message_new_signal( bus, &m, BSC_OBJ_PATH, BSC_IFACE, "Question" );
-    if (r >= 0) r = append_question( m, q );
-    if (r >= 0) r = sd_bus_send( bus, m, nullptr );
-    if (r < 0) LOG( "cannot send question: %s", strerror( -r ) );
-    sd_bus_message_unref( m );
+    send_question( q );
 }
 
 void ask_connect( group_state& g ) {
@@ -784,6 +790,60 @@ int act_backup( group_state& g, sd_bus_error* e ) {
     return 0;
 }
 
+// Ask: the group's pending question once more, else the question for its
+// state (present: connect, mounted: unmount). Like every question, it does
+// nothing unless answered. false + why if there is nothing to ask.
+bool ask_again( group_state& g, string& what ) {
+    auto it = questions.find( g.question );
+    if (it != questions.end()) {
+        send_question( it->second );
+        what = "question #" + std::to_string( g.question ) + " (" + it->second.kind + ") shown again";
+        return true;
+    }
+    if (g.st == gstate::running) { what = "backup running"; return false; }
+    if (!all_present( g, nullptr )) { what = "devices not connected"; return false; }
+    if (g.st == gstate::mounted && any_mounted( g ))
+        ask_unmount( g, "Mounted " + join( g.cfg.mountpoints, " " ) + "." );
+    else
+        ask_connect( g );
+    if (!g.question) { what = "nothing to ask"; return false; }
+    what = "question #" + std::to_string( g.question ) + " (" + question_kind( g ) + ") asked";
+    return true;
+}
+
+// Ask(s group) -> a(sbs) (group, asked, what); "" = every group. Needs no
+// authorization: a question only offers the actions, answering is checked.
+int m_ask( sd_bus_message* m, void*, sd_bus_error* e ) {
+    const char* name;
+    int r = sd_bus_message_read( m, "s", &name );
+    if (r < 0) return r;
+    LOG( "ask %s requested by %s", name[0] ? name : "(all groups)", sender_name( m ).c_str() );
+    vector<std::tuple<string, bool, string>> out;
+    if (name[0]) {
+        group_state* g = find_group( name );
+        if (!g) return sd_bus_error_setf( e, SD_BUS_ERROR_INVALID_ARGS, "no watch group '%s'", name );
+        string what;
+        if (!ask_again( *g, what )) return sd_bus_error_setf( e, ERR_FAILED, "%s: %s", name, what.c_str() );
+        out.emplace_back( name, true, what );
+    } else {
+        for (auto& [n, g]: groups) {
+            if (g.stale) continue;
+            string what;
+            bool ok = ask_again( g, what );
+            out.emplace_back( n, ok, what );
+        }
+    }
+    sd_bus_message* reply = nullptr;
+    r = sd_bus_message_new_method_return( m, &reply );
+    if (r >= 0) r = sd_bus_message_open_container( reply, 'a', "(sbs)" );
+    for (auto& [n, ok, what]: out)
+        if (r >= 0) r = sd_bus_message_append( reply, "(sbs)", n.c_str(), (int)ok, what.c_str() );
+    if (r >= 0) r = sd_bus_message_close_container( reply );
+    if (r >= 0) r = sd_bus_send( nullptr, reply, nullptr );
+    sd_bus_message_unref( reply );
+    return r;
+}
+
 int reply_ok( sd_bus_message* m, int r ) {
     return r < 0 ? r : sd_bus_reply_method_return( m, "" );
 }
@@ -885,6 +945,7 @@ const sd_bus_vtable daemon_vtable[] = {
     SD_BUS_METHOD( "Backup", "s", "", m_backup, SD_BUS_VTABLE_UNPRIVILEGED ),
     SD_BUS_METHOD( "Stop", "s", "", m_stop, SD_BUS_VTABLE_UNPRIVILEGED ),
     SD_BUS_METHOD( "Reload", "", "", m_reload, SD_BUS_VTABLE_UNPRIVILEGED ),
+    SD_BUS_METHOD( "Ask", "s", "a(sbs)", m_ask, SD_BUS_VTABLE_UNPRIVILEGED ),
     SD_BUS_SIGNAL( "Question", "ussa(ss)sss", 0 ),
     SD_BUS_SIGNAL( "QuestionResolved", "uss", 0 ),
     SD_BUS_SIGNAL( "GroupChanged", "ss", 0 ),
