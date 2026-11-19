@@ -3,13 +3,11 @@
  * license: gpl-v3
  */
 
-#ifndef DEFAULT_CONFIG_FILE
-#define DEFAULT_CONFIG_FILE "/etc/btrfs-snap.conf"
-#endif
-
 #include "snap.hpp"
 #include "config.hpp"
 #include "nokill.hpp"
+#include "watchgroups.hpp"
+#include "modes.hpp"
 #include <unistd.h>
 
 void print_help( string progname ) {
@@ -30,14 +28,33 @@ void print_help( string progname ) {
          << "         -x <cmd>        execute <cmd> after snapshooting" << endl
          << "         -C              do not create a snapshot" << endl
          << "         -d              dry run (only print commands)" << endl
-         << "         -c <file>       run from config file" << endl;
+         << "         -c <file>       run from config file" << endl
+         << "         -g <group>      only run config sections with 'watch = <group>'" << endl
+         << "                         and fail if the remote snapshot dir is missing" << endl
+         << endl
+         << "daemon mode:" << endl
+         << "  " << progname << " --daemon [-c <file>] [-f <fstab>] [-v]" << endl
+         << "  " << progname << " agent [-t <terminal>] [-v]" << endl
+         << "  " << progname << " status | backup [-w|-f] <group> | mount <group> | umount <group>" << endl
+         << "  " << progname << " stop <group> | answer <id> <choice> | reload" << endl;
 }
 
 int main( int argc, char** argv ) {
     int opt;
     string setup_variables = "";
-    string config_file = DEFAULT_CONFIG_FILE;
-    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:Cc:x:")) != -1) {
+    if (argc > 1) {
+        string mode = argv[1];
+        if (mode == "--daemon" || mode == "daemon")
+            return daemon_main( argc-1, argv+1 );
+        if (mode == "agent")
+            return agent_main( argc-1, argv+1 );
+        if (is_client_command( mode ))
+            return client_main( argc-1, argv+1 );
+    }
+
+    string config_file = default_config_file();
+    string group = "";
+    while ((opt = getopt(argc, argv, ":hdR:S:r:s:b:B:p:H:TP:Cc:x:g:")) != -1) {
         switch (opt) {
             case 'h':
                 print_help( argv[0] );
@@ -84,6 +101,9 @@ int main( int argc, char** argv ) {
             case 'c':
                 config_file = string(optarg);
                 break;
+            case 'g':
+                group = string(optarg);
+                break;
             case '?':
                 WARN( "unknown option '-" << (char)optopt << "'. show help with -h" );
                 break;
@@ -100,17 +120,34 @@ int main( int argc, char** argv ) {
             return EXIT_FAILURE;
         if (sections.size() > 0) {
             CFG( "config file mode." );
+            if (group != "")
+                snapshot_setup::require_remote = true;
+            unsigned ran = 0;
             for (unsigned i=0; i<sections.size(); ++i) {
-                CFG( "[" << sections[i] << "]" );
+                string watch_name;
+                if (watch_section_group( sections[i], watch_name ))
+                    continue; // group configuration, not a backup job
                 set_params( config[i] );
+                if (group != "" && snapshot_setup::watch_group != group)
+                    continue;
+                CFG( "[" << sections[i] << "]" );
+                ran++;
                 if (snap_and_transfer())
                     return EXIT_FAILURE;
+            }
+            if (group != "" && !ran) {
+                ERR( "no config section has 'watch = " << group << "'" );
+                return EXIT_FAILURE;
             }
             if (!snapshot_setup::do_sync)
                 if (snap_finalize_sync())
                     return EXIT_FAILURE;
             return EXIT_SUCCESS;
         }
+    }
+    if (group != "") {
+        ERR( "-g needs a config file with sections" );
+        return EXIT_FAILURE;
     }
 
     if (setup_variables != "")

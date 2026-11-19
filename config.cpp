@@ -2,6 +2,7 @@
 #include "snap.hpp"
 
 #include <iostream>
+#include <unistd.h>
 #include <boost/property_tree/exceptions.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
@@ -37,6 +38,9 @@ static bool parse_bool( string s ) {
 }
 
 void set_params( const vector<pair<string,string>>& params ) {
+    // watch_* keys describe a single section; don't inherit them
+    snapshot_setup::watch_group = "";
+    snapshot_setup::watch_devices = "";
     for (auto& p: params) {
         if (p.first == "host_name") {
             snapshot_setup::host_name = p.second;
@@ -64,8 +68,22 @@ void set_params( const vector<pair<string,string>>& params ) {
             snapshot_setup::create = parse_bool(p.second);
         } else if (p.first == "sync") {
             snapshot_setup::do_sync = parse_bool(p.second);
+        } else if (p.first == "watch") {
+            snapshot_setup::watch_group = p.second;
+        } else if (p.first == "watch_devices") {
+            snapshot_setup::watch_devices = p.second;
         } else {
             WARN( "key '" << p.first << "' unknown." );
         }
     }
+}
+
+string default_config_file() {
+    static const char old_file[] = "/etc/btrfs-snap.conf";
+    if (access( DEFAULT_CONFIG_FILE, F_OK ) != 0 && access( old_file, F_OK ) == 0) {
+        WARN( "using old config file '" << old_file << "', please rename it to '"
+                << DEFAULT_CONFIG_FILE << "'" );
+        return old_file;
+    }
+    return DEFAULT_CONFIG_FILE;
 }

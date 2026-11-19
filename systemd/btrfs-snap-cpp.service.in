@@ -1,0 +1,11 @@
+[Unit]
+Description=btrfs-snap-cpp backup disk watcher
+
+[Service]
+Type=dbus
+BusName=org.btrfssnapcpp.Daemon1
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/btrfs-snap-cpp --daemon
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

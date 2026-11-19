@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <iostream>
 
@@ -18,7 +20,27 @@ class snapshot_setup {
         static bool transfer;
         static bool create;
         static bool do_sync;
+        // fail instead of falling back to local operation when the remote
+        // snapshot dir is missing (set by -g)
+        static bool require_remote;
+        // per-section only (not inherited by following sections)
+        static string watch_group;
+        static string watch_devices;
 };
+
+// copy of all snapshot_setup values, to evaluate a config file without
+// disturbing the current settings
+struct snapshot_setup_state {
+    string host_name, backup_name, backup_dir, snapshot_dir, remote_snapshot_dir;
+    unsigned keep_remote_snapshots_num, keep_snapshots_num;
+    bool dry_run;
+    string pre_command, post_command;
+    bool transfer, create, do_sync, require_remote;
+    string watch_group, watch_devices;
+};
+snapshot_setup_state snapshot_setup_save();
+void snapshot_setup_restore( const snapshot_setup_state& s );
+
 
 int snap_and_transfer();
 int setup_variables_saved( string name );

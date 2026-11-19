@@ -14,7 +14,10 @@
 #include <linux/limits.h>
 #include <unistd.h>
 #include <algorithm>
-#include <fstream>
+#include <fcntl.h>
+#include <cstring>
+#include <cerrno>
+#include <cstdlib>
 
 string snapshot_setup::host_name = "cygnus";
 string snapshot_setup::backup_name = "home";
@@ -29,6 +32,9 @@ string snapshot_setup::post_command = "";
 bool snapshot_setup::transfer = true;
 bool snapshot_setup::create = true;
 bool snapshot_setup::do_sync = true;
+bool snapshot_setup::require_remote = false;
+string snapshot_setup::watch_group = "";
+string snapshot_setup::watch_devices = "";
 
 using std::vector;
 using std::string;
@@ -97,6 +103,18 @@ int snap_and_transfer() {
     if (!snapshot_setup::create)
         current_snap_name = local_snapshots[local_snapshots.size()-1].substr(snapshot_setup::snapshot_dir.length(),
                 string::npos);
+
+    if (snapshot_setup::transfer && snapshot_setup::require_remote &&
+            has_dir( snapshot_setup::remote_snapshot_dir )) {
+        if (snapshot_setup::dry_run) {
+            WARN( "remote snapshot directory '" << snapshot_setup::remote_snapshot_dir <<
+                    "' not present (dry run, continuing)." );
+        } else {
+            ERR( "remote snapshot directory '" << snapshot_setup::remote_snapshot_dir <<
+                    "' not present." );
+            return EXIT_FAILURE;
+        }
+    }
 
     if (has_dir( snapshot_setup::remote_snapshot_dir ) || !snapshot_setup::transfer ) {
         if (!snapshot_setup::transfer)
@@ -199,28 +217,59 @@ int has_dir( string pathname ) {
         return 1;
 }
 
-string tempfile() {
-    char tmpnam[PATH_MAX];
-    std::tmpnam( tmpnam );
-    return tmpnam;
+// anonymous temporary file: created private (0600, O_EXCL) and unlinked right
+// away, so it never needs cleaning up and nobody can swap it. -1 on failure.
+static int temp_fd() {
+    const char* dir = getenv( "TMPDIR" );
+    string path = string( dir && dir[0] ? dir : "/tmp" ) + "/btrfs-snap-cpp.XXXXXX";
+    vector<char> tmpl( path.begin(), path.end() );
+    tmpl.push_back( '\0' );
+    int fd = mkostemp( tmpl.data(), O_CLOEXEC );
+    if (fd >= 0)
+        unlink( tmpl.data() );
+    return fd;
 }
 
+// run command with /bin/sh; its stdout and stderr are collected and printed
+// as "shell:" lines once it finished. returns the wait status (0: success).
 int execute( string command ) {
-    string fname = tempfile();
-    command = "trap '' SIGINT; " + command + " 2>&1 > '" + fname + "'";
+    int fd = temp_fd();
+    if (fd < 0) {
+        ERR( "cannot create temporary file: " << strerror( errno ) );
+        return EXIT_FAILURE;
+    }
+    // { ...; } so every part of a compound command is captured; the newline
+    // keeps a trailing comment or missing ';' from eating the brace
+    command = "trap '' SIGINT; {\n" + command + "\n}";
     pid_t other = fork();
+    if (other < 0) {
+        ERR( "fork failed: " << strerror( errno ) );
+        close( fd );
+        return EXIT_FAILURE;
+    }
     if (!other) {
         signal(SIGINT, nokill_handler);
+        dup2( fd, STDOUT_FILENO );
+        dup2( fd, STDERR_FILENO );
         execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
+        _exit( 127 );
     }
     int result = 0;
-    waitpid( other, &result, 0 );
-    std::ifstream ftmp( fname );
-    for (string line; std::getline(ftmp, line); ) {
-        SHELL( line );
+    while (waitpid( other, &result, 0 ) < 0 && errno == EINTR) {}
+
+    string output;
+    char buf[4096];
+    off_t off = 0;
+    for (ssize_t n; (n = pread( fd, buf, sizeof(buf), off )) > 0; off += n)
+        output.append( buf, n );
+    close( fd );
+    size_t start = 0;
+    while (start < output.size()) {
+        size_t end = output.find( '\n', start );
+        if (end == string::npos) end = output.size();
+        SHELL( output.substr( start, end-start ) );
+        start = end + 1;
     }
-    ftmp.close();
-    remove( fname.c_str() );
     return result;
 }
 
@@ -339,4 +388,44 @@ int setup_variables_saved( string name ) {
 
 int snap_finalize_sync() {
     return btrfs_sync();
+}
+
+snapshot_setup_state snapshot_setup_save() {
+    snapshot_setup_state s;
+    s.host_name = snapshot_setup::host_name;
+    s.backup_name = snapshot_setup::backup_name;
+    s.backup_dir = snapshot_setup::backup_dir;
+    s.snapshot_dir = snapshot_setup::snapshot_dir;
+    s.remote_snapshot_dir = snapshot_setup::remote_snapshot_dir;
+    s.keep_remote_snapshots_num = snapshot_setup::keep_remote_snapshots_num;
+    s.keep_snapshots_num = snapshot_setup::keep_snapshots_num;
+    s.dry_run = snapshot_setup::dry_run;
+    s.pre_command = snapshot_setup::pre_command;
+    s.post_command = snapshot_setup::post_command;
+    s.transfer = snapshot_setup::transfer;
+    s.create = snapshot_setup::create;
+    s.do_sync = snapshot_setup::do_sync;
+    s.require_remote = snapshot_setup::require_remote;
+    s.watch_group = snapshot_setup::watch_group;
+    s.watch_devices = snapshot_setup::watch_devices;
+    return s;
+}
+
+void snapshot_setup_restore( const snapshot_setup_state& s ) {
+    snapshot_setup::host_name = s.host_name;
+    snapshot_setup::backup_name = s.backup_name;
+    snapshot_setup::backup_dir = s.backup_dir;
+    snapshot_setup::snapshot_dir = s.snapshot_dir;
+    snapshot_setup::remote_snapshot_dir = s.remote_snapshot_dir;
+    snapshot_setup::keep_remote_snapshots_num = s.keep_remote_snapshots_num;
+    snapshot_setup::keep_snapshots_num = s.keep_snapshots_num;
+    snapshot_setup::dry_run = s.dry_run;
+    snapshot_setup::pre_command = s.pre_command;
+    snapshot_setup::post_command = s.post_command;
+    snapshot_setup::transfer = s.transfer;
+    snapshot_setup::create = s.create;
+    snapshot_setup::do_sync = s.do_sync;
+    snapshot_setup::require_remote = s.require_remote;
+    snapshot_setup::watch_group = s.watch_group;
+    snapshot_setup::watch_devices = s.watch_devices;
 }

@@ -1,4 +1,4 @@
-# btrfs-snap
+# btrfs-snap-cpp
 simple c++ snapshot backup with btrfs for linux
 
 ## features
@@ -8,8 +8,36 @@ simple c++ snapshot backup with btrfs for linux
 * use smallest partial snapshot difference possible (depending on data available
   on remote and locally)
 * clean up after run, e.g. keep only `n` local and `m` remote snapshots
+* daemon mode: watch for backup disks and ask what to do when they are
+  connected (mount + backup / mount only / nothing, then unmount / keep)
 
 ## technicalities
-* `g++ -std=c++17 -Wall -Wextra -pedantic snap.cpp -o snap` with a `c++17`
-  capable `g++` version and `linux-headers`
-* run with `./snap -d` for a dry run. show help with `./snap -h`.
+* build with `cmake -B build && cmake --build build` (or `make`); needs a
+  `c++17` compiler, boost (property_tree), libmount and libsystemd.
+  Everything is one executable, `btrfs-snap-cpp`.
+* run with `btrfs-snap-cpp -d` for a dry run. show help with `btrfs-snap-cpp -h`.
+* config file: `/etc/btrfs-snap-cpp.conf` (falls back to the old
+  `/etc/btrfs-snap.conf`), see `btrfs-snap-cpp.conf`.
+
+## daemon mode
+* sections join a *watch group* with `watch = <group>`. The group's disks are
+  taken from fstab (the entry holding `remote_snapshot_dir`), or configured
+  explicitly:
+  ```ini
+  [watch hdd]
+  devices = UUID=5f2c...  PARTUUID=1234abcd-01   # all must be connected
+  mount   = /mnt/backup-hdd                      # optional, default: fstab
+  ```
+* `btrfs-snap-cpp --daemon` (root, `btrfs-snap-cpp.service`) watches devices
+  and asks questions over D-Bus; backups run as
+  `btrfs-snap-cpp-backup-<group>.service`
+  (logs: `journalctl -u btrfs-snap-cpp-backup-<group>`).
+* `btrfs-snap-cpp agent` (user, `btrfs-snap-cpp-agent.service`) shows the
+  questions as desktop notifications.
+* without root: `btrfs-snap-cpp status | backup [-w] <group> | mount <group> |
+  umount <group> | stop <group> | answer <id> <choice> | reload`. Changes are
+  authorized by polkit (`org.btrfssnapcpp.manage`, no password for the
+  active local session).
+* setup: `cmake --install build`, then
+  `systemctl enable --now btrfs-snap-cpp` and
+  `systemctl --user enable --now btrfs-snap-cpp-agent`.
