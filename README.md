@@ -43,7 +43,9 @@ simple c++ snapshot backup with btrfs for linux
   `btrfs-snap-cpp-backup-<group>.service`
   (logs: `journalctl -u btrfs-snap-cpp-backup-<group>`).
 * `btrfs-snap-cpp agent` (user, `btrfs-snap-cpp-agent.service`) shows the
-  questions as desktop notifications.
+  questions as desktop notifications, with the notification server's
+  default timeout for normal urgency. An expired or dismissed notification
+  leaves its question pending; `btrfs-snap-cpp ask` shows it again.
 * without root: `btrfs-snap-cpp status | backup [-w] <group> | mount <group> |
   umount <group> | stop <group> | answer <id> <choice> | reload | ask [<group>]`.
   Changes are authorized by polkit (`org.btrfssnapcpp.manage`, no password

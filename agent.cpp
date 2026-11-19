@@ -181,7 +181,9 @@ void show_question( const question& q ) {
     }
     string summary = q.kind == "connect" ? "Backup disks '" + q.group + "' connected"
                                          : "Backup disks '" + q.group + "'";
-    uint32_t id = notify( replaces, summary, q.text, actions, 1, 0 );
+    // the server's default timeout for normal urgency: an expired one only
+    // goes away here, the question stays pending (status, ask brings it back)
+    uint32_t id = notify( replaces, summary, q.text, actions, 1, -1 );
     if (!id) return;
     notifs[id] = shown{ q.id, q.group, q.log, q.def };
     question_notif[q.id] = id;
