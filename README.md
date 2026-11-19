@@ -12,12 +12,17 @@ simple c++ snapshot backup with btrfs for linux
   connected (mount + backup / mount only / nothing, then unmount / keep)
 
 ## technicalities
-* build with `cmake -B build && cmake --build build` (or `make`); needs a
+* build with `cmake -B build -DCMAKE_INSTALL_PREFIX=/usr && cmake --build build`
+  (or `make`); needs a
   `c++17` compiler, boost (property_tree), libmount and libsystemd.
   Everything is one executable, `btrfs-snap-cpp`.
 * run with `btrfs-snap-cpp -d` for a dry run. show help with `btrfs-snap-cpp -h`.
 * config file: `/etc/btrfs-snap-cpp.conf` (falls back to the old
-  `/etc/btrfs-snap.conf`), see `btrfs-snap-cpp.conf`.
+  `/etc/btrfs-snap.conf`), see `btrfs-snap-cpp.conf`. `cmake --install`
+  puts the commented sample there only if no config exists yet.
+* install with prefix `/usr`: the D-Bus policy and the polkit action are only
+  read from `/usr/share/...`, and the config then goes to `/etc` (with the
+  default prefix `/usr/local` it would be `/usr/local/etc`).
 
 ## daemon mode
 * sections join a *watch group* with `watch = <group>`. The group's disks are
@@ -38,6 +43,6 @@ simple c++ snapshot backup with btrfs for linux
   umount <group> | stop <group> | answer <id> <choice> | reload`. Changes are
   authorized by polkit (`org.btrfssnapcpp.manage`, no password for the
   active local session).
-* setup: `cmake --install build`, then
+* setup: `sudo cmake --install build`, then
   `systemctl enable --now btrfs-snap-cpp` and
   `systemctl --user enable --now btrfs-snap-cpp-agent`.
