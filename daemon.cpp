@@ -333,8 +333,8 @@ void ask_connect( group_state& g ) {
 
 void ask_unmount( group_state& g, const string& text, const string& log = "" ) {
     if (!any_mounted( g )) return;
-    ask( g, "finish", text + "\nUnmount " + join( g.cfg.mountpoints, " " ) + "?",
-            { { "keep", "Keep mounted" }, { "unmount", "Unmount" } }, log );
+    ask( g, "finish", text + "\nUnmount/Backup " + join( g.cfg.mountpoints, " " ) + "?",
+            { { "keep", "Keep mounted" }, { "unmount", "Unmount" }, { "backup", "Backup" } }, log );
 }
 
 /* ---------------------------------------------------------- mount / umount */
