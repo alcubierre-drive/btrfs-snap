@@ -206,6 +206,12 @@ void emit_error( const string& group, const string& msg ) {
     sd_bus_emit_signal( bus, BSC_OBJ_PATH, BSC_IFACE, "Error", "ss", group.c_str(), msg.c_str() );
 }
 
+// success messages for agents (normal urgency, unlike Error)
+void emit_info( const string& group, const string& msg ) {
+    LOG( "group '%s': %s", group.c_str(), msg.c_str() );
+    sd_bus_emit_signal( bus, BSC_OBJ_PATH, BSC_IFACE, "Info", "ss", group.c_str(), msg.c_str() );
+}
+
 bool all_present( const group_state& g, vector<string>* devnodes ) {
     bool present = !g.cfg.devices.empty();
     for (auto& d: g.cfg.devices) {
@@ -771,11 +777,13 @@ int act_mount( group_state& g, sd_bus_error* e ) {
 int act_umount( group_state& g, sd_bus_error* e ) {
     if (g.st == gstate::running) return fail( e, g.cfg.name, "backup running" );
     if (question_kind( g ) == "finish") withdraw( g );
+    bool was_mounted = any_mounted( g );
     string err;
     if (!do_umount( g, err )) {
         ask_unmount( g, "Unmounting failed: " + err );
         return fail( e, g.cfg.name, err );
     }
+    if (was_mounted) emit_info( g.cfg.name, "Unmounted " + join( g.cfg.mountpoints, " " ) + "." );
     set_state( g, all_present( g, nullptr ) ? gstate::present : gstate::absent );
     return 0;
 }
@@ -951,6 +959,7 @@ const sd_bus_vtable daemon_vtable[] = {
     SD_BUS_SIGNAL( "GroupChanged", "ss", 0 ),
     SD_BUS_SIGNAL( "BackupFinished", "sbss", 0 ),
     SD_BUS_SIGNAL( "Error", "ss", 0 ),
+    SD_BUS_SIGNAL( "Info", "ss", 0 ),
     SD_BUS_VTABLE_END
 };
 

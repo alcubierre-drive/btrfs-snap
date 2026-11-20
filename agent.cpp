@@ -285,6 +285,13 @@ int on_error( sd_bus_message* m, void*, sd_bus_error* ) {
     return 0;
 }
 
+int on_info( sd_bus_message* m, void*, sd_bus_error* ) {
+    const char *group, *msg;
+    if (sd_bus_message_read( m, "ss", &group, &msg ) < 0) return 0;
+    notify( 0, string( "Backup disks '" ) + group + "'", msg, {}, 1, -1 );
+    return 0;
+}
+
 int on_owner_changed( sd_bus_message* m, void*, sd_bus_error* ) {
     const char *name, *old_owner, *new_owner;
     if (sd_bus_message_read( m, "sss", &name, &old_owner, &new_owner ) < 0) return 0;
@@ -385,6 +392,7 @@ int agent_main( int argc, char** argv ) {
     struct { const char* member; sd_bus_message_handler_t fn; } sigs[] = {
         { "Question", on_question }, { "QuestionResolved", on_resolved },
         { "BackupFinished", on_finished }, { "Error", on_error },
+        { "Info", on_info },
     };
     for (auto& s: sigs)
         CHECK( sd_bus_match_signal( daemon_bus, nullptr, BSC_BUS_NAME, BSC_OBJ_PATH, BSC_IFACE,
