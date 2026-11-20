@@ -42,6 +42,7 @@ void log_msg( const char* fmt, ... ) {
 
 sd_bus* daemon_bus = nullptr; // where the daemon lives (system bus)
 sd_bus* user_bus = nullptr;   // notifications
+sd_event* event = nullptr;
 
 struct question {
     uint32_t id = 0;
@@ -222,7 +223,33 @@ void load_questions() {
 
 int on_question( sd_bus_message* m, void*, sd_bus_error* ) {
     question q;
-    if (read_question( m, q ) > 0) show_question( q );
+    if (read_question( m, q ) <= 0) return 0;
+    LOG( "question #%u (%s) for '%s'", q.id, q.kind.c_str(), q.group.c_str() );
+    show_question( q );
+    return 0;
+}
+
+// around a suspend the daemon may ask while this service is still frozen
+// (systemd freezes user sessions while asleep) and the Question signal can
+// go missing: after a resume the pending questions are fetched again, once
+// right away and once more when late devices (a dock's disks) are in.
+// show_question() skips those already shown.
+int on_resync( sd_event_source* s, uint64_t, void* ) {
+    sd_event_source_unref( s );
+    DBG( "resumed a while ago: fetching pending questions" );
+    load_questions();
+    return 0;
+}
+
+int on_sleep( sd_bus_message* m, void*, sd_bus_error* ) {
+    int start;
+    if (sd_bus_message_read( m, "b", &start ) < 0 || start) return 0;
+    LOG( "resumed: fetching pending questions" );
+    load_questions();
+    sd_event_source* s = nullptr;
+    if (sd_event_add_time_relative( event, &s, CLOCK_MONOTONIC, 10 * USEC_PER_SEC, USEC_PER_SEC,
+                on_resync, nullptr ) < 0)
+        LOG( "cannot arm the resume check" );
     return 0;
 }
 
@@ -346,7 +373,6 @@ int agent_main( int argc, char** argv ) {
     sigprocmask( SIG_BLOCK, &ss, nullptr );
     signal( SIGCHLD, SIG_IGN ); // auto-reap spawned terminals
 
-    sd_event* event = nullptr;
     CHECK( sd_event_default( &event ), "sd_event_default" );
     CHECK( sd_event_add_signal( event, nullptr, SIGTERM, nullptr, nullptr ), "signal" );
     CHECK( sd_event_add_signal( event, nullptr, SIGINT, nullptr, nullptr ), "signal" );
@@ -370,6 +396,12 @@ int agent_main( int argc, char** argv ) {
     CHECK( sd_bus_match_signal( user_bus, nullptr, nullptr, "/org/freedesktop/Notifications",
                 "org.freedesktop.Notifications", "NotificationClosed", on_closed, nullptr ),
             "match NotificationClosed" );
+
+    // logind is on the system bus; with the daemon on the session bus
+    // (testing) this never fires
+    if (sd_bus_match_signal( daemon_bus, nullptr, "org.freedesktop.login1", "/org/freedesktop/login1",
+                "org.freedesktop.login1.Manager", "PrepareForSleep", on_sleep, nullptr ) < 0)
+        LOG( "cannot watch for resume; questions asked around a suspend may need 'ask'" );
 
     load_questions();
     int r = sd_event_loop( event );
